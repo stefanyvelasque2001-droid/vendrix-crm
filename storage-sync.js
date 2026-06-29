@@ -5,7 +5,7 @@
   const DATA_KEYS = ["v_bi_data", "v_bi_lotes", "v_bi_dic", "v_bi_gastos", "v_bi_tel"];
   let vendrixPin = localStorage.getItem(PIN_KEY);
   let saveTimer = null;
-  let lastCloudSnapshot = "";
+  let restoringFromCloud = false;
 
   function getPin() {
     if (!vendrixPin) {
@@ -25,10 +25,15 @@
   }
 
   function setLocalState(state) {
+    restoringFromCloud = true;
+
     DATA_KEYS.forEach(key => localStorage.removeItem(key));
+
     Object.keys(state || {}).forEach(key => {
       if (DATA_KEYS.includes(key)) localStorage.setItem(key, state[key]);
     });
+
+    restoringFromCloud = false;
   }
 
   function hasData(state) {
@@ -49,6 +54,7 @@
     }
 
     if (!response.ok) throw new Error("No se pudo leer la base");
+
     return response.json();
   }
 
@@ -59,11 +65,11 @@
         "Content-Type": "application/json",
         "x-vendrix-pin": getPin()
       },
-      body: JSON.stringify(state)
+      body: JSON.stringify(state),
+      cache: "no-store"
     });
 
     if (!response.ok) throw new Error("No se pudo guardar en la base");
-    lastCloudSnapshot = JSON.stringify(state || {});
   }
 
   async function initialSync() {
@@ -71,23 +77,25 @@
     const localState = getLocalState();
 
     if (hasData(cloudState)) {
-      lastCloudSnapshot = JSON.stringify(cloudState);
       setLocalState(cloudState);
       return;
     }
 
     if (hasData(localState)) {
-      lastCloudSnapshot = JSON.stringify(localState);
       await writeCloud(localState);
     }
   }
 
   async function saveNow() {
+    if (restoringFromCloud) return;
+
     const localState = getLocalState();
     await writeCloud(localState);
   }
 
   function scheduleSave() {
+    if (restoringFromCloud) return;
+
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveNow().catch(() => {
@@ -96,17 +104,10 @@
     }, 400);
   }
 
-  async function checkForChanges() {
+  async function reloadFromCloud() {
     const cloudState = await readCloud();
-    const cloudSnapshot = JSON.stringify(cloudState || {});
-
-    if (lastCloudSnapshot && cloudSnapshot !== lastCloudSnapshot) {
-      setLocalState(cloudState);
-      location.reload();
-      return;
-    }
-
-    lastCloudSnapshot = cloudSnapshot;
+    setLocalState(cloudState);
+    location.reload();
   }
 
   const originalSetItem = Storage.prototype.setItem;
@@ -115,12 +116,18 @@
 
   Storage.prototype.setItem = function (key, value) {
     originalSetItem.call(this, key, value);
-    if (this === localStorage && DATA_KEYS.includes(key)) scheduleSave();
+
+    if (this === localStorage && DATA_KEYS.includes(key)) {
+      scheduleSave();
+    }
   };
 
   Storage.prototype.removeItem = function (key) {
     originalRemoveItem.call(this, key);
-    if (this === localStorage && DATA_KEYS.includes(key)) scheduleSave();
+
+    if (this === localStorage && DATA_KEYS.includes(key)) {
+      scheduleSave();
+    }
   };
 
   Storage.prototype.clear = function () {
@@ -128,15 +135,10 @@
     scheduleSave();
   };
 
-  initialSync()
-    .then(() => {
-      setInterval(() => {
-        checkForChanges().catch(() => {});
-      }, 10000);
-    })
-    .catch(() => {
-      console.warn("VENDRIX trabajara localmente hasta reconectar.");
-    });
+  initialSync().catch(() => {
+    console.warn("VENDRIX trabajara localmente hasta reconectar.");
+  });
 
   window.vendrixSyncNow = saveNow;
+  window.vendrixReloadFromCloud = reloadFromCloud;
 })();
