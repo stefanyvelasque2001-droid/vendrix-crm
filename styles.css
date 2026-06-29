@@ -1,0 +1,147 @@
+:root {
+    --bg-main: #f8fafc;
+    --bg-sidebar: #0f172a;
+    --text-sidebar: #94a3b8;
+    --text-active: #ffffff;
+    --accent-blue: #1e40af;
+    --accent-light: #3b82f6;
+    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: #1e293b;
+    overflow-x: hidden;
+}
+
+/* Sidebar Estilo Analítico Financiero */
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    background-color: var(--bg-sidebar);
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 2rem 1rem;
+    z-index: 100;
+}
+
+.sidebar .brand {
+    font-size: 1.3rem;
+    color: #ffffff;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding-left: 0.5rem;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+}
+
+.sidebar .nav-link {
+    color: var(--text-sidebar);
+    font-size: 0.95rem;
+    padding: 0.8rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.4rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+    background-color: #1e293b;
+    color: var(--text-active);
+    font-weight: 600;
+}
+
+/* Contenedor Principal */
+.main-content {
+    margin-left: 250px;
+    padding: 2.5rem;
+    min-height: 100vh;
+}
+
+/* Tarjetas Estilo BI Moderno */
+.card-custom {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: var(--card-shadow);
+}
+
+.kpi-card {
+    border-left: 5px solid #cbd5e1;
+    background-color: #ffffff;
+}
+
+.border-primary-custom { border-left-color: #2563eb !important; }
+.border-success-custom { border-left-color: #16a34a !important; }
+.border-info-custom { border-left-color: #0891b2 !important; }
+.border-warning-custom { border-left-color: #ca8a04 !important; }
+.border-danger-custom { border-left-color: #dc2626 !important; }
+
+.progress-custom {
+    height: 14px;
+    border-radius: 7px;
+    background-color: #f1f5f9;
+}
+
+.chart-container {
+    position: relative;
+    height: 280px;
+    width: 100%;
+}
+
+.row-divider > div:not(:last-child) {
+    border-right: 1px solid #e2e8f0;
+}
+
+/* Colores de Contexto de Inventario y Rotación */
+.bg-light-green { background-color: #f0fdf4 !important; border: 1px solid #bbf7d0; }
+.bg-light-orange { background-color: #fff7ed !important; border: 1px solid #ffedd5; }
+.bg-light-red { background-color: #fef2f2 !important; border: 1px solid #fee2e2; }
+
+.border-start-4 {
+    border-left: 4px solid #06b6d4 !important;
+}
+
+/* DataTables Overrides */
+.custom-table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-uppercase: true;
+}
+
+/* Adaptabilidad para Dispositivos */
+@media (max-width: 992px) {
+    .sidebar {
+        width: 75px;
+        padding: 1.5rem 0.25rem;
+    }
+    .sidebar .brand span, .sidebar .nav-link span {
+        display: none;
+    }
+    .sidebar .nav-link {
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    .main-content {
+        margin-left: 75px;
+        padding: 1.5rem;
+    }
+    .row-divider > div {
+        border-right: none !important;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+    }
+}
+
+.col-xl-2\.4 {
+    flex: 0 0 auto;
+    width: 20%;
+}
+@media (max-width: 1200px) {
+    .col-xl-2\.4 { width: 33.33%; }
+}
+@media (max-width: 576px) {
+    .col-xl-2\.4 { width: 100%; }
+}

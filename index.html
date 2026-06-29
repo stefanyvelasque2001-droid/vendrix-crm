@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VENDRIX BI - Panel de Control Empresarial</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #0f172a;
+            --accent-color: #3b82f6;
+            --bg-light: #f8fafc;
+            --card-border: #e2e8f0;
+        }
+        body {
+            background-color: var(--bg-light);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #334155;
+            overflow-x: hidden;
+        }
+        .sidebar {
+            background-color: var(--secondary-color);
+            width: 260px;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 1030;
+            padding: 20px 0;
+            transition: all 0.3s ease;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.05);
+        }
+        .sidebar .brand {
+            padding: 0 24px 20px 24px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.25rem;
+            border-bottom: 1px solid #334155;
+            letter-spacing: 0.5px;
+        }
+        .sidebar .nav-link {
+            color: #94a3b8;
+            padding: 12px 24px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #1e293b;
+            border-left-color: var(--accent-color);
+        }
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+        }
+        .topbar {
+            background: #fff;
+            padding: 15px 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            border: 1px solid var(--card-border);
+        }
+        .card-custom {
+            background: #fff;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01);
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            border-left: 5px solid var(--accent-color);
+            transition: transform 0.2s ease;
+        }
+        .chart-container {
+            position: relative;
+            height: 320px;
+            width: 100%;
+        }
+        @media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 15px; }
+            .topbar { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+            #btnToggleMobileMenu { display: block !important; }
+            .chart-container { height: 260px; }
+        }
+        #btnToggleMobileMenu { display: none; }
+        .bg-light-danger { background-color: #fef2f2; }
+        .bg-light-green { background-color: #f0fdf4; }
+        .bg-light-orange { background-color: #fff7ed; }
+        .table-responsive { border-radius: 8px; overflow: hidden; }
+    </style>
+</head>
+<body>
+
+    <button class="btn btn-dark position-fixed bottom-0 end-0 m-3 d-lg-none shadow" id="btnToggleMobileMenu" style="z-index: 2000; border-radius: 50%; width: 56px; height: 56px;">
+        <i class="fa-solid fa-bars fs-4"></i>
+    </button>
+
+    <div class="sidebar" id="sidebarMenu">
+        <div class="brand d-flex justify-content-between align-items-center">
+            <span><i class="fa-solid fa-chart-pie text-info me-2"></i> VENDRIX BI</span>
+            <button class="btn btn-sm btn-outline-light d-lg-none" onclick="document.getElementById('sidebarMenu').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <nav class="nav flex-column mt-4" id="main-nav">
+            <a class="nav-link active" href="#dashboard-section"><i class="fa-solid fa-chart-column me-2"></i> Dashboard</a>
+            <a class="nav-link" href="#convertidor-section"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i> Convertidor BI</a>
+            <a class="nav-link" href="#productos-section"><i class="fa-solid fa-cookie-bite me-2"></i> Alertas y Rotación</a>
+            <a class="nav-link" href="#diccionario-section"><i class="fa-solid fa-book text-success me-2"></i> Diccionario y Precios</a>
+            <a class="nav-link" href="#stock-section"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Control de Stock</a>
+            <a class="nav-link" href="#telemetria-section"><i class="fa-solid fa-satellite-dish text-info me-2"></i> Stock en Máquina</a>
+            <a class="nav-link" href="#simulador-section"><i class="fa-solid fa-calculator text-muted me-2"></i> Simulador Compras</a>
+            <a class="nav-link" href="#gastos-section"><i class="fa-solid fa-receipt text-danger me-2"></i> Gastos Registrados</a>
+            <a class="nav-link" href="#transacciones-section"><i class="fa-solid fa-receipt me-2"></i> Transacciones</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <header class="topbar d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h4 mb-0 fw-bold text-dark">Business Intelligence — VENDRIX</h1>
+                <small class="text-muted">Gestión Financiera Real y Auditoría Logística</small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" id="btnResetFilters">Limpiar filtros</button>
+            <button class="btn btn-danger btn-sm fw-bold shadow-sm" id="btnClearData">Cero Absoluto</button>
+        </header>
+
+        <div id="alertContainer" class="mb-4"></div>
+
+        <div class="card-custom mb-4 border-primary">
+            <h6 class="card-title text-uppercase text-muted fw-bold small mb-3"><i class="fa-solid fa-filter text-primary me-2"></i>Filtros Globales Dinómicos</h6>
+            <div class="row g-2">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold">Fecha Inicio</label>
+                    <input type="date" id="filterStartDate" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold">Fecha Fin</label>
+                    <input type="date" id="filterEndDate" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold">Medio de Pago</label>
+                    <select id="filterPayment" class="form-select form-select-sm"><option value="TODOS">Todos</option></select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small fw-bold">Seleccionar Máquina</label>
+                    <select id="filterMachine" class="form-select form-select-sm"><option value="TODOS">Todas las Máquinas</option></select>
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-end">
+                    <button id="btnForceRefreshGlobal" class="btn btn-primary btn-sm w-100 fw-bold"><i class="fa-solid fa-arrows-rotate"></i> Refrescar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboard-section" class="content-view">
+            <div class="row g-2 mb-4">
+                <div class="col-6 col-md-4 col-xl-2.4"><div class="card-custom kpi-card border-primary p-3 mb-0"><small class="text-muted text-uppercase fw-bold">Ventas Totales</small><div class="h4 my-1 fw-bold text-dark" id="kpiTotalSales">S/ 0.00</div></div></div>
+                <div class="col-6 col-md-4 col-xl-2.4"><div class="card-custom kpi-card border-success p-3 mb-0"><small class="text-muted text-uppercase fw-bold" id="titleTodayKpi">Último Día</small><div class="h4 my-1 fw-bold text-success" id="kpiTodaySales">S/ 0.00</div></div></div>
+                <div class="col-6 col-md-4 col-xl-2.4"><div class="card-custom kpi-card border-info p-3 mb-0"><small class="text-muted text-uppercase fw-bold">Productos</small><div class="h4 my-1 fw-bold text-info" id="kpiTotalQty">0</div></div></div>
+                <div class="col-6 col-md-4 col-xl-2.4"><div class="card-custom kpi-card border-warning p-3 mb-0"><small class="text-muted text-uppercase fw-bold">Ticket Prom.</small><div class="h4 my-1 fw-bold text-warning" id="kpiAvgTicket">S/ 0.00</div></div></div>
+                <div class="col-12 col-md-4 col-xl-2.4"><div class="card-custom kpi-card border-danger p-3 mb-0 bg-light-danger"><small class="text-danger text-uppercase fw-bold"><i class="fa-solid fa-calculator me-1"></i>Ganancia Real</small><div class="h4 my-1 fw-bold text-danger" id="kpiTotalProfit">S/ 0.00</div></div></div>
+            </div>
+            <div class="card-custom mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="card-title fw-bold mb-0 small">Meta Anual (S/ 15,000):</h6><span class="badge bg-primary" id="metaPercentage">0%</span></div>
+                <div class="progress mb-2" style="height: 10px;"><div id="metaProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div></div>
+                <div class="row text-center g-1 small text-muted">
+                    <div class="col-4">Acumulado: <span class="fw-bold text-dark d-block" id="metaAccumulated">S/ 0.00</span></div>
+                    <div class="col-4 border-start border-end">Ganancia: <span class="fw-bold text-success d-block" id="metaProfit">S/ 0.00</span></div>
+                    <div class="col-4">Faltante: <span class="fw-bold text-danger d-block" id="metaMissing">S/ 0.00</span></div>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-lg-8"><div class="card-custom h-100"><h6>Histórico Temporal de Ventas</h6><div class="chart-container"><canvas id="chartHistory"></canvas></div></div></div>
+                <div class="col-12 col-lg-4"><div class="card-custom h-100"><h6>Medios de Pago</h6><div class="chart-container"><canvas id="chartPayments"></canvas></div></div></div>
+            </div>
+        </div>
+
+        <div id="convertidor-section" class="content-view d-none">
+            <div class="card-custom mb-4 border-warning">
+                <h6><i class="fa-solid fa-paste text-warning me-2"></i>Convertidor Automático (Mapeo de Excel)</h6>
+                <textarea id="rawCsvPasteData" class="form-control font-monospace mb-3 small" rows="5" placeholder="Pega los datos recopilados de tu Excel aquí..."></textarea>
+                <button class="btn btn-warning fw-bold text-dark w-100 shadow-sm" id="btnPreviewPasteData">Convertir y Previsualizar</button>
+            </div>
+            <div class="card-custom d-none border-primary" id="stagingCardContainer">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h6>Previsualización Organizada</h6><button class="btn btn-success btn-sm fw-bold shadow" id="btnCommitStagingData">Aprobar y Reemplazar Panel</button></div>
+                <div class="table-responsive"><table class="table table-striped table-bordered small align-middle" id="tableStagingPreview"><thead class="table-primary"><tr><th>Fecha</th><th>Hora</th><th>Máquina</th><th>Código</th><th>Producto</th><th>Pago</th><th class="text-end">Valor</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <div id="productos-section" class="content-view d-none">
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-lg-6"><div class="card-custom h-100"><h6>TOP 10 Snacks Más Vendidos</h6><div class="table-responsive"><table class="table table-hover align-middle small w-100" id="tableTopProducts"><thead><tr class="table-light"><th>Rank</th><th>Código</th><th>Nombre</th><th class="text-end">Cant.</th><th class="text-end">Monto</th></tr></thead><tbody></tbody></table></div></div></div>
+                <div class="col-12 col-lg-6"><div class="card-custom h-100"><h6>Volumen de Salidas por Código</h6><div class="chart-container"><canvas id="chartTopProducts"></canvas></div></div></div>
+            </div>
+            <div class="row g-2">
+                <div class="col-12 col-md-4"><div class="card-custom bg-light-green border-start border-success border-3 p-3"><h6>Mayor Margen Unitario</h6><ul class="list-group list-group-flush bg-transparent" id="listProfitable"></ul></div></div>
+                <div class="col-12 col-md-4"><div class="card-custom bg-light-orange border-start border-warning border-3 p-3"><h6>Los 5 Menos Vendidos</h6><ul class="list-group list-group-flush bg-transparent" id="listLessSold"></ul></div></div>
+                <div class="col-12 col-md-4"><div class="card-custom bg-light-danger border-start border-danger border-3 p-3"><h6>Stock Alto Estancado</h6><ul class="list-group list-group-flush bg-transparent" id="listNoMovement"></ul></div></div>
+            </div>
+        </div>
+
+        <div id="diccionario-section" class="content-view d-none">
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <div class="card-custom border-success"><h6 id="dicFormTitle">Catálogo Maestro de Productos</h6>
+                        <form id="formAddDicProduct">
+                            <div class="mb-2"><label class="form-label small fw-bold">Casilla</label><input type="text" id="dicProductCode" class="form-control form-control-sm font-monospace" required></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Nombre</label><input type="text" id="dicProductName" class="form-control form-control-sm" required></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Precio Venta (S/)</label><input type="number" id="dicProductPrice" class="form-control form-control-sm" step="0.01" min="0" required></div>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Guardar en Catálogo</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8"><div class="card-custom"><h6>Catálogo de Precios, Costos y Markups</h6><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableDicMaster"><thead class="table-dark"><tr><th>Código</th><th>Nombre Comercial</th><th class="text-end">Costo</th><th class="text-end">Venta</th><th class="text-end">Margen</th><th class="text-end">Margen%</th><th class="text-end">Markup%</th><th class="text-center">Acción</th></tr></thead><tbody></tbody></table></div></div></div>
+            </div>
+        </div>
+
+        <div id="stock-section" class="content-view d-none">
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <div class="card-custom border-primary"><h6 id="stockFormTitle">Registrar Factura de Almacén</h6>
+                        <form id="formAddStock">
+                            <div class="mb-2"><label class="form-label small fw-bold">N° Factura</label><input type="text" id="stockInvoiceNum" class="form-control form-control-sm" required></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Snack (Buscador)</label><select id="stockProductSelectorAutoComplete" class="form-select form-select-sm border-primary"></select></div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><label class="form-label small fw-bold">Código Casilla</label><input type="text" id="stockProductCode" class="form-control form-control-sm font-monospace" readonly required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Fecha Entrada</label><input type="date" id="stockInvoiceDate" class="form-control form-control-sm" required></div>
+                            </div>
+                            <div class="row g-1 mb-3">
+                                <div class="col-4"><label class="form-label small fw-bold">Cant.</label><input type="number" id="stockQty" class="form-control form-control-sm" min="1" required></div>
+                                <div class="col-4"><label class="form-label small fw-bold">Bruto Tot.</label><input type="number" id="stockTotalCost" class="form-control form-control-sm" step="0.01" required></div>
+                                <div class="col-4"><label class="form-label small fw-bold">Desc.</label><input type="number" id="stockDiscount" class="form-control form-control-sm" step="0.01" value="0.00"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Registrar Compra Lote</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8"><div class="card-custom"><h6>Kardex e Inventario Central de Almacén</h6><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableStockKardex"><thead class="table-dark"><tr><th>Código</th><th>Producto</th><th class="text-end">Costo U.</th><th class="text-end">Total Compras</th><th class="text-end">Total Ventas</th><th class="text-end">Almacén Actual</th><th>Alerta</th></tr></thead><tbody></tbody></table></div></div></div>
+            </div>
+            <div class="card-custom border-secondary mt-3"><h6>Auditoría Cronológica de Facturas de Compra</h6><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableInvoiceHistory"><thead class="table-secondary"><tr><th>N° Factura</th><th>Fecha</th><th>Casilla</th><th>Producto</th><th class="text-end">Total</th><th class="text-end">Desc.</th><th class="text-end">Cant.</th><th class="text-end">Neto U.</th><th class="text-center">Acción</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+
+        <div id="telemetria-section" class="content-view d-none">
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <div class="card-custom border-info"><h6><i class="fa-solid fa-satellite-dish me-2"></i>Abastecimiento Físico de Bandejas</h6>
+                        <form id="formAddMachineTelemetry">
+                            <div class="mb-2"><label class="form-label small fw-bold">Escribir/Seleccionar Nombre Máquina</label><input type="text" id="telMachineId" class="form-control form-control-sm fw-bold border-info" required value="MAQUINA 1"></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Seleccionar Producto</label><select id="telProductSelector" class="form-select form-select-sm border-info" required></select></div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6"><label class="form-label small fw-bold">Fecha Carga Física</label><input type="date" id="telLoadDate" class="form-control form-control-sm" required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Cantidad Inyectada</label><input type="number" id="telQty" class="form-control form-control-sm font-monospace" min="1" required placeholder="Ej: 10"></div>
+                            </div>
+                            <button type="submit" class="btn btn-info text-dark fw-bold btn-sm w-100">Guardar Lote en Resorte</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8">
+                    <div class="card-custom">
+                        <h6><i class="fa-solid fa-calculator text-info me-2"></i>Monitor de Resortes y Semáforo de Visitas del Técnico</h6>
+                        <div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableTelemetryMaster"><thead class="table-dark"><tr><th>Máquina</th><th>Casilla</th><th>Producto</th><th>Fecha Carga</th><th class="text-end">Base</th><th class="text-end">Ventas Post.</th><th class="text-end table-primary">Stock en Máquina</th><th class="text-center">Estado Alerta</th></tr></thead><tbody></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="simulador-section" class="content-view d-none">
+            <div class="card-custom mb-4 border-info shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-2"><h6><i class="fa-solid fa-calculator text-info me-2"></i>Simulador de Abastecimiento Preventivo (Proyecciones de Órdenes de Compra)</h6><select id="simPeriodDays" class="form-select form-select-sm fw-bold border-info" style="width: 200px;"><option value="7" selected>1 Semana (7 Días)</option><option value="14">2 Semanas (14 Días)</option></select></div>
+                <p class="text-muted small mb-0">Calcula la velocidad de venta diaria según el archivo cargado y te genera la orden sugerida para que no te quedes sin stock.</p>
+            </div>
+            <div class="card-custom">
+                <div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableSimulationOrder"><thead class="table-dark"><tr><th>Casilla</th><th>Nombre Snack</th><th class="text-end">Venta Diaria Prom.</th><th class="text-end">Stock Requerido</th><th class="text-end text-info">Stock Real Almacén</th><th class="text-end bg-success text-white fw-bold">Cantidad a Comprar</th><th>Alerta Quiebre</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <div id="gastos-section" class="content-view d-none">
+            <div class="card-custom bg-light-danger border-danger mb-4 p-3">
+                <h6 class="text-danger fw-bold text-uppercase small mb-2">Cuadro Deductor de Gastos Seleccionados</h6>
+                <div class="row text-center g-2">
+                    <div class="col-4"><small class="text-muted d-block">Ganancia Bruta</small><span class="fw-bold text-dark" id="deductGrossProfit">S/ 0.00</span></div>
+                    <div class="col-4 border-start border-end"><small class="text-danger d-block">(-) Gastos Checks</small><span class="fw-bold text-danger" id="deductTotalSelected">S/ 0.00</span></div>
+                    <div class="col-4"><small class="text-success d-block">Utilidad Neta Liquida</small><span class="fw-bold text-success fs-5" id="deductNetProfit">S/ 0.00</span></div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <div class="card-custom border-danger"><h6>Registrar Egreso Extra Manual</h6>
+                        <form id="formAddGasto">
+                            <div class="mb-2"><label class="form-label small fw-bold">Nro Recibo</label><input type="text" id="gastoNum" class="form-control form-control-sm" required></div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><label class="form-label small fw-bold">Fecha</label><input type="date" id="gastoDate" class="form-control form-control-sm" required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Monto (S/)</label><input type="number" id="gastoAmount" class="form-control form-control-sm" step="0.01" required></div>
+                            </div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Concepto</label><input type="text" id="gastoReason" class="form-control form-control-sm" required></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Responsable</label><input type="text" id="gastoUser" class="form-control form-control-sm" required></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Observación</label><input type="text" id="gastoObs" class="form-control form-control-sm"></div>
+                            <div class="mb-3"><label class="form-label small fw-bold">Adjuntar Boleta</label><input type="file" id="gastoFile" class="form-control form-control-sm"></div>
+                            <button type="submit" class="btn btn-danger btn-sm w-100 fw-bold">Grabar Gasto</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8"><div class="card-custom"><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableGastosMaster"><thead class="table-dark"><tr><th class="text-center">Deducir</th><th>Nro Recibo</th><th>Fecha</th><th class="text-end">Monto</th><th>Motivo</th><th>Responsable</th><th>Observación</th><th class="text-center">Adjunto</th></tr></thead><tbody></tbody></table></div></div></div>
+            </div>
+        </div>
+
+        <div id="transacciones-section" class="content-view d-none">
+            <div class="card-custom"><div class="table-responsive"><table id="dtTransactions" class="table table-striped table-bordered w-100 small align-middle"><thead class="table-dark"><tr><th>Fecha</th><th>Hora</th><th>Máquina</th><th>Código</th><th>Producto</th><th>Estado</th><th>Pago</th><th class="text-end">Cant.</th><th class="text-end">Valor</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script>
+        document.getElementById('btnToggleMobileMenu').addEventListener('click', function() { document.getElementById('sidebarMenu').classList.toggle('open'); });
+        document.querySelectorAll('.sidebar .nav-link').forEach(link => { link.addEventListener('click', function() { document.getElementById('sidebarMenu').classList.remove('open'); }); });
+    </script>
+    <script src="storage-sync.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
