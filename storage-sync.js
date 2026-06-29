@@ -4,6 +4,7 @@
   const PIN_KEY = "vendrix_pin";
   let vendrixPin = localStorage.getItem(PIN_KEY);
   let saveTimer = null;
+  let lastCloudSnapshot = "";
 
   function getPin() {
     if (!vendrixPin) {
@@ -15,13 +16,11 @@
 
   function snapshotStorage() {
     const data = {};
-
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key === PIN_KEY) continue;
       data[key] = localStorage.getItem(key);
     }
-
     return data;
   }
 
@@ -32,22 +31,31 @@
     });
   }
 
+  async function fetchCloud() {
+    const response = await fetch("/api/state", {
+      headers: { "x-vendrix-pin": getPin() },
+      cache: "no-store"
+    });
+
+    if (!response.ok) throw new Error("No se pudo leer Supabase");
+    return response.json();
+  }
+
   async function saveRemoteNow() {
     try {
-      const response = await fetch("/api/state", {
+      const payload = snapshotStorage();
+      lastCloudSnapshot = JSON.stringify(payload);
+
+      await fetch("/api/state", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-vendrix-pin": getPin()
         },
-        body: JSON.stringify(snapshotStorage())
+        body: JSON.stringify(payload)
       });
-
-      if (!response.ok) {
-        console.warn("VENDRIX no pudo guardar en Supabase.");
-      }
     } catch (error) {
-      console.warn("VENDRIX esta trabajando localmente hasta reconectar.");
+      console.warn("VENDRIX no pudo guardar en Supabase.");
     }
   }
 
@@ -56,26 +64,31 @@
     saveTimer = setTimeout(saveRemoteNow, 350);
   }
 
-  function loadRemote() {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", "/api/state", false);
-    xhr.setRequestHeader("x-vendrix-pin", getPin());
-    xhr.send(null);
+  async function loadRemote() {
+    const data = await fetchCloud();
+    lastCloudSnapshot = JSON.stringify(data || {});
+    restoreStorage(data);
+  }
 
-    if (xhr.status === 200) {
-      const data = JSON.parse(xhr.responseText || "{}");
-      restoreStorage(data);
-    } else if (xhr.status === 401) {
-      localStorage.removeItem(PIN_KEY);
-      alert("PIN incorrecto. Recarga la pagina e intenta otra vez.");
+  async function checkRemoteChanges() {
+    try {
+      const data = await fetchCloud();
+      const nextSnapshot = JSON.stringify(data || {});
+
+      if (lastCloudSnapshot && nextSnapshot !== lastCloudSnapshot) {
+        restoreStorage(data);
+        location.reload();
+      }
+
+      lastCloudSnapshot = nextSnapshot;
+    } catch (error) {
+      console.warn("No se pudo verificar cambios remotos.");
     }
   }
 
-  try {
-    loadRemote();
-  } catch (error) {
-    console.warn("VENDRIX trabajara con datos locales hasta reconectar.");
-  }
+  loadRemote().catch(() => {
+    console.warn("VENDRIX trabajara localmente hasta reconectar.");
+  });
 
   const originalSetItem = Storage.prototype.setItem;
   const originalRemoveItem = Storage.prototype.removeItem;
@@ -83,18 +96,12 @@
 
   Storage.prototype.setItem = function (key, value) {
     originalSetItem.call(this, key, value);
-
-    if (this === localStorage && key !== PIN_KEY) {
-      saveRemote();
-    }
+    if (this === localStorage && key !== PIN_KEY) saveRemote();
   };
 
   Storage.prototype.removeItem = function (key) {
     originalRemoveItem.call(this, key);
-
-    if (this === localStorage && key !== PIN_KEY) {
-      saveRemote();
-    }
+    if (this === localStorage && key !== PIN_KEY) saveRemote();
   };
 
   Storage.prototype.clear = function () {
@@ -102,5 +109,5 @@
     saveRemote();
   };
 
-  window.vendrixForceSync = saveRemoteNow;
+  setInterval(checkRemoteChanges, 15000);
 })();
