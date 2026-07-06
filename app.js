@@ -68,8 +68,72 @@ let HISTORIAL_GASTOS_EXTRA = [];
 let HISTORIAL_TELEMETRIA_BANDEJAS = []; 
 
 let CURRENT_EDIT_LOTE_ID = null;
+let CURRENT_EDIT_TELEMETRIA_ID = null;
+let CURRENT_EDIT_GASTO_ID = null;
 let chartHistory = null, chartPayments = null, chartTopProducts = null;
 let dtInstance = null, dtDicMaster = null, dtSimulationOrder = null, dtGastosMaster = null, dtTelemetryMaster = null;
+function normalizeCode(code) {
+    return String(code || '').replace('COD-', '').trim();
+}
+
+function normalizeMachine(machine) {
+    return String(machine || 'MAQUINA 1').trim().toUpperCase();
+}
+
+function normalizePayment(payment) {
+    return String(payment || 'Otros').trim();
+}
+
+function normalizeDateValue(value) {
+    if (!value) return '';
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+    const parts = text.split(/[\/-]/);
+    if (parts.length === 3) {
+        if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+
+    return text;
+}
+
+function enrichSaleRecord(row) {
+    const rawCode = normalizeCode(row.rawCode || row.codigo);
+    const meta = DICCIONARIO_PRODUCTOS[rawCode];
+
+    return {
+        ...row,
+        fecha: normalizeDateValue(row.fecha),
+        maquina: normalizeMachine(row.maquina),
+        pago: normalizePayment(row.pago),
+        rawCode,
+        codigo: `COD-${rawCode}`,
+        producto: meta ? meta.nombre : (row.producto || `Snack Codigo ${rawCode}`),
+        cantidad: Number(row.cantidad || 1),
+        valor: Number(row.valor || 0)
+    };
+}
+
+function getFilteredSales() {
+    const sDate = document.getElementById('filterStartDate').value;
+    const eDate = document.getElementById('filterEndDate').value;
+    const paymentSel = document.getElementById('filterPayment').value;
+    const machineSel = normalizeMachine(document.getElementById('filterMachine').value);
+
+    return DATABASE_STATE.map(enrichSaleRecord).filter(r => {
+        if (sDate && r.fecha < sDate) return false;
+        if (eDate && r.fecha > eDate) return false;
+        if (paymentSel !== 'TODOS' && r.pago !== paymentSel) return false;
+        if (machineSel !== 'TODOS' && normalizeMachine(r.maquina) !== machineSel) return false;
+        return true;
+    });
+}
+
+function saveSalesOnly() {
+    DATABASE_STATE = DATABASE_STATE.map(enrichSaleRecord);
+    localStorage.setItem('v_bi_data', JSON.stringify(DATABASE_STATE));
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
@@ -138,7 +202,7 @@ function loadApplicationData() {
     const localTel = localStorage.getItem('v_bi_tel');
 
     if (localDic) DICCIONARIO_PRODUCTOS = JSON.parse(localDic);
-    DATABASE_STATE = localStore ? JSON.parse(localStore) : [];
+    DATABASE_STATE = localStore ? JSON.parse(localStore).map(enrichSaleRecord) : [];
     HISTORIAL_GASTOS_EXTRA = localGastos ? JSON.parse(localGastos) : [];
     HISTORIAL_TELEMETRIA_BANDEJAS = localTel ? JSON.parse(localTel) : [];
     
@@ -183,18 +247,22 @@ function handleNewTelemetrySubmit(e) {
     const dateLoad = document.getElementById('telLoadDate').value;
     const qty = parseInt(document.getElementById('telQty').value) || 0;
 
-    HISTORIAL_TELEMETRIA_BANDEJAS = HISTORIAL_TELEMETRIA_BANDEJAS.filter(t => !(t.maquina === mach && t.rawCode === code));
-    HISTORIAL_TELEMETRIA_BANDEJAS.push({
-        id_tel: `T-${Date.now()}`, maquina: mach, rawCode: code, fecha_carga: dateLoad, cantidad_inyectada: qty
-    });
+    const payload = { id_tel: CURRENT_EDIT_TELEMETRIA_ID || `T-${Date.now()}`, maquina: mach, rawCode: code, fecha_carga: dateLoad, cantidad_inyectada: qty };
+    if (CURRENT_EDIT_TELEMETRIA_ID) {
+        HISTORIAL_TELEMETRIA_BANDEJAS = HISTORIAL_TELEMETRIA_BANDEJAS.map(t => t.id_tel === CURRENT_EDIT_TELEMETRIA_ID ? payload : t);
+    } else {
+        HISTORIAL_TELEMETRIA_BANDEJAS.push(payload);
+    }
 
     localStorage.setItem('v_bi_tel', JSON.stringify(HISTORIAL_TELEMETRIA_BANDEJAS));
-    document.getElementById('telQty').value = '';
+    CURRENT_EDIT_TELEMETRIA_ID = null;
+    document.getElementById('formAddMachineTelemetry').reset();
+    document.getElementById('telMachineId').value = mach || 'MAQUINA 1';
+    document.querySelector('#formAddMachineTelemetry button[type="submit"]').innerText = 'Guardar Lote en Resorte';
     renderTelemetryMasterTable();
     processAndRenderAll();
-    alert("¡Bandeja física sincronizada con éxito para el reponedor!");
+    alert("Stock en máquina guardado correctamente.");
 }
-
 function renderTelemetryMasterTable() {
     const tbody = document.querySelector('#tableTelemetryMaster tbody'); if(!tbody) return;
     if(dtTelemetryMaster) dtTelemetryMaster.destroy(); tbody.innerHTML = '';
@@ -222,8 +290,8 @@ function renderTelemetryMasterTable() {
         const stockEnMaquinaReal = Math.max(t.cantidad_inyectada - ventasPosteriores, 0);
 
         let semaforo = '<span class="badge bg-success w-100 py-1">Abastecido</span>';
-        if(stockEnMaquinaReal <= 2) semaforo = '<span class="badge bg-danger w-100 py-1">🔴 Urgente Abastecer</span>';
-        else if(stockEnMaquinaReal <= 5) semaforo = '<span class="badge bg-warning text-dark w-100 py-1">🟡 Medio</span>';
+        if(stockEnMaquinaReal <= 2) semaforo = '<span class="badge bg-danger w-100 py-1">Urgente Abastecer</span>';
+        else if(stockEnMaquinaReal <= 5) semaforo = '<span class="badge bg-warning text-dark w-100 py-1">Medio</span>';
 
         tbody.innerHTML += `
             <tr>
@@ -234,12 +302,28 @@ function renderTelemetryMasterTable() {
                 <td class="text-end fw-bold text-primary bg-primary bg-opacity-10">${t.cantidad_inyectada}</td>
                 <td class="text-end text-danger font-monospace">-${ventasPosteriores}</td>
                 <td class="text-end table-primary font-monospace fw-bold fs-6">${stockEnMaquinaReal}</td>
-                <td>${semaforo}</td>
-            </tr>`;
+                <td>${semaforo}</td><td class="text-center"><button class="btn btn-sm btn-outline-primary py-0 px-2 me-1" onclick="editTelemetry('${t.id_tel}')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteTelemetry('${t.id_tel}')"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
     dtTelemetryMaster = $('#tableTelemetryMaster').DataTable({ destroy: true, pageLength: 10, order: [[1, 'asc']], language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' } });
 }
+function editTelemetry(id) {
+    const t = HISTORIAL_TELEMETRIA_BANDEJAS.find(item => item.id_tel === id);
+    if (!t) return;
+    CURRENT_EDIT_TELEMETRIA_ID = id;
+    document.getElementById('telMachineId').value = t.maquina || 'MAQUINA 1';
+    document.getElementById('telProductSelector').value = t.rawCode || '';
+    document.getElementById('telLoadDate').value = t.fecha_carga || '';
+    document.getElementById('telQty').value = t.cantidad_inyectada || 0;
+    document.querySelector('#formAddMachineTelemetry button[type="submit"]').innerText = 'Actualizar Stock en Máquina';
+}
 
+function deleteTelemetry(id) {
+    if (!confirm("¿Borrar este registro de stock en máquina?")) return;
+    HISTORIAL_TELEMETRIA_BANDEJAS = HISTORIAL_TELEMETRIA_BANDEJAS.filter(t => t.id_tel !== id);
+    localStorage.setItem('v_bi_tel', JSON.stringify(HISTORIAL_TELEMETRIA_BANDEJAS));
+    renderTelemetryMasterTable();
+    processAndRenderAll();
+}
 // GESTIÓN DE EGRESOS Y CUADRO DEDUCTOR SELECTIVO
 function handleNewGastoSubmit(e) {
     e.preventDefault();
@@ -249,14 +333,34 @@ function handleNewGastoSubmit(e) {
     const gReason = document.getElementById('gastoReason').value.trim();
     const gUser = document.getElementById('gastoUser').value.trim();
     const gObs = document.getElementById('gastoObs').value.trim() || 'Ninguna';
-    
-    HISTORIAL_GASTOS_EXTRA.push({ id_gasto: `G-${Date.now()}`, num_comprobante: gNum, fecha: gDate, monto: gAmount, motivo: gReason, responsable: gUser, observacion: gObs, adjunto: "Boleta.pdf", deducir: false });
-    localStorage.setItem('v_bi_gastos', JSON.stringify(HISTORIAL_GASTOS_EXTRA));
-    document.getElementById('formAddGasto').reset(); 
-    renderGastosMasterTable(); 
-    alert("¡Gasto Operativo Registrado!");
-}
 
+    const existing = CURRENT_EDIT_GASTO_ID ? HISTORIAL_GASTOS_EXTRA.find(g => g.id_gasto === CURRENT_EDIT_GASTO_ID) : null;
+    const payload = {
+        id_gasto: CURRENT_EDIT_GASTO_ID || `G-${Date.now()}`,
+        num_comprobante: gNum,
+        fecha: gDate,
+        monto: gAmount,
+        motivo: gReason,
+        responsable: gUser,
+        observacion: gObs,
+        adjunto: existing ? existing.adjunto : "Boleta.pdf",
+        deducir: existing ? !!existing.deducir : false
+    };
+
+    if (CURRENT_EDIT_GASTO_ID) {
+        HISTORIAL_GASTOS_EXTRA = HISTORIAL_GASTOS_EXTRA.map(g => g.id_gasto === CURRENT_EDIT_GASTO_ID ? payload : g);
+    } else {
+        HISTORIAL_GASTOS_EXTRA.push(payload);
+    }
+
+    localStorage.setItem('v_bi_gastos', JSON.stringify(HISTORIAL_GASTOS_EXTRA));
+    CURRENT_EDIT_GASTO_ID = null;
+    document.getElementById('formAddGasto').reset();
+    document.querySelector('#formAddGasto button[type="submit"]').innerText = 'Grabar Gasto';
+    renderGastosMasterTable();
+    recalcularCuadroDeductorGastos();
+    alert("Gasto guardado correctamente.");
+}
 function renderGastosMasterTable() {
     const tbody = document.querySelector('#tableGastosMaster tbody'); if (!tbody) return;
     if (dtGastosMaster) dtGastosMaster.destroy(); tbody.innerHTML = '';
@@ -267,17 +371,39 @@ function renderGastosMasterTable() {
                 <td class="font-monospace fw-bold">${g.num_comprobante}</td><td>${g.fecha}</td>
                 <td class="text-end fw-bold text-danger">S/ ${g.monto.toFixed(2)}</td><td>${g.motivo}</td><td>${g.responsable}</td><td>${g.observacion}</td>
                 <td class="text-center text-primary"><i class="fa-solid fa-file-pdf fs-5" style="cursor:pointer;"></i></td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2 me-1" onclick="editGasto('${g.id_gasto}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteGasto('${g.id_gasto}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
             </tr>`;
     });
     dtGastosMaster = $('#tableGastosMaster').DataTable({ destroy: true, pageLength: 5, order: [[2, 'desc']], language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' } });
     recalcularCuadroDeductorGastos();
 }
-
 function toggleGastoDeduccion(id) {
     let egreso = HISTORIAL_GASTOS_EXTRA.find(g => g.id_gasto === id);
     if(egreso) { egreso.deducir = !egreso.deducir; localStorage.setItem('v_bi_gastos', JSON.stringify(HISTORIAL_GASTOS_EXTRA)); recalcularCuadroDeductorGastos(); }
 }
+function editGasto(id) {
+    const g = HISTORIAL_GASTOS_EXTRA.find(item => item.id_gasto === id);
+    if (!g) return;
+    CURRENT_EDIT_GASTO_ID = id;
+    document.getElementById('gastoNum').value = g.num_comprobante || '';
+    document.getElementById('gastoDate').value = g.fecha || '';
+    document.getElementById('gastoAmount').value = g.monto || 0;
+    document.getElementById('gastoReason').value = g.motivo || '';
+    document.getElementById('gastoUser').value = g.responsable || '';
+    document.getElementById('gastoObs').value = g.observacion || '';
+    document.querySelector('#formAddGasto button[type="submit"]').innerText = 'Actualizar Gasto';
+}
 
+function deleteGasto(id) {
+    if (!confirm("¿Borrar este gasto?")) return;
+    HISTORIAL_GASTOS_EXTRA = HISTORIAL_GASTOS_EXTRA.filter(g => g.id_gasto !== id);
+    localStorage.setItem('v_bi_gastos', JSON.stringify(HISTORIAL_GASTOS_EXTRA));
+    renderGastosMasterTable();
+    recalcularCuadroDeductorGastos();
+}
 function recalcularCuadroDeductorGastos() {
     let gananciaBrutaDashboard = 0;
     const paymentSel = document.getElementById('filterPayment').value;
@@ -313,8 +439,8 @@ function handleDicProductSubmit(e) {
 
     DICCIONARIO_PRODUCTOS[code] = { "nombre": name, "precio": price, "costo": costoActual };
     localStorage.setItem('v_bi_dic', JSON.stringify(DICCIONARIO_PRODUCTOS));
-    DATABASE_STATE.forEach(r => { if (r.rawCode === code) { r.producto = name; } });
-    localStorage.setItem('v_bi_data', JSON.stringify(DATABASE_STATE));
+    DATABASE_STATE = DATABASE_STATE.map(enrichSaleRecord);
+    saveSalesOnly();
     document.getElementById('formAddDicProduct').reset(); 
     buildFormSelectorsAutoComplete(); 
     renderDicMasterTable(); 
@@ -339,7 +465,7 @@ function deleteDicProductField(code) { if (confirm("¿Borrar?")) { delete DICCIO
 function handleNewInvoiceSubmit(e) {
     e.preventDefault();
     const invoiceNum = document.getElementById('stockInvoiceNum').value.trim();
-    const code = document.getElementById('stockProductCode').value.trim().toUpperCase().replace('COD-', '');
+    const code = document.getElementById('stockProductCode').value;
     const dateInvoice = document.getElementById('stockInvoiceDate').value;
     const qty = parseInt(document.getElementById('stockQty').value) || 0;
     const totalCost = parseFloat(document.getElementById('stockTotalCost').value) || 0;
@@ -350,22 +476,40 @@ function handleNewInvoiceSubmit(e) {
         if (DICCIONARIO_PRODUCTOS[code]) DICCIONARIO_PRODUCTOS[code].costo = unitCostCalculated;
         localStorage.setItem('v_bi_dic', JSON.stringify(DICCIONARIO_PRODUCTOS));
 
-        HISTORIAL_COMPRAS_LOTES.push({ "id_lote": `LOTE-${Date.now()}`, num_factura: invoiceNum, fecha_compra: dateInvoice, rawCode: code, costo_total: totalCost, descuento: discount, cantidad: qty, costo_unitario: unitCostCalculated });
+        const payload = { "id_lote": CURRENT_EDIT_LOTE_ID || `LOTE-${Date.now()}`, num_factura: invoiceNum, fecha_compra: dateInvoice, rawCode: code, costo_total: totalCost, descuento: discount, cantidad: qty, costo_unitario: unitCostCalculated };
+        if (CURRENT_EDIT_LOTE_ID) {
+            HISTORIAL_COMPRAS_LOTES = HISTORIAL_COMPRAS_LOTES.map(l => l.id_lote === CURRENT_EDIT_LOTE_ID ? payload : l);
+        } else {
+            HISTORIAL_COMPRAS_LOTES.push(payload);
+        }
         localStorage.setItem('v_bi_lotes', JSON.stringify(HISTORIAL_COMPRAS_LOTES));
+        CURRENT_EDIT_LOTE_ID = null;
         document.getElementById('stockInvoiceNum').value = ''; document.getElementById('stockProductSelectorAutoComplete').value = ''; document.getElementById('stockProductCode').value = ''; document.getElementById('stockQty').value = ''; document.getElementById('stockTotalCost').value = ''; document.getElementById('stockDiscount').value = '0.00';
-        renderDicMasterTable(); renderInvoiceHistoryTable(); processAndRenderAll(); alert("Factura Registrada.");
+        document.querySelector('#formAddStock button[type="submit"]').innerText = 'Registrar Compra Lote';
+        renderDicMasterTable(); renderInvoiceHistoryTable(); processAndRenderAll(); alert("Factura guardada.");
     }
 }
-
 function renderInvoiceHistoryTable() {
     const tbody = document.querySelector('#tableInvoiceHistory tbody'); if (!tbody) return;
     tbody.innerHTML = ''; let sortedLotes = [...HISTORIAL_COMPRAS_LOTES].sort((a,b) => b.fecha_compra.localeCompare(a.fecha_compra));
     sortedLotes.forEach(l => {
         const prod = DICCIONARIO_PRODUCTOS[l.rawCode];
-        tbody.innerHTML += `<tr><td>${l.num_factura || 'S/N'}</td><td>${l.fecha_compra}</td><td class="font-monospace">COD-${l.rawCode}</td><td><strong>${prod ? prod.nombre : "Snack"}</strong></td><td class="text-end">S/ ${l.costo_total.toFixed(2)}</td><td class="text-end text-muted">S/ ${l.descuento.toFixed(2)}</td><td class="text-end fw-bold">${l.cantidad}</td><td class="text-end text-primary fw-bold">S/ ${l.costo_unitario.toFixed(2)}</td><td class="text-center"><button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="deleteInvoiceLote('${l.id_lote}')"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+        tbody.innerHTML += `<tr><td>${l.num_factura || 'S/N'}</td><td>${l.fecha_compra}</td><td class="font-monospace">COD-${l.rawCode}</td><td><strong>${prod ? prod.nombre : "Snack"}</strong></td><td class="text-end">S/ ${l.costo_total.toFixed(2)}</td><td class="text-end text-muted">S/ ${l.descuento.toFixed(2)}</td><td class="text-end fw-bold">${l.cantidad}</td><td class="text-end text-primary fw-bold">S/ ${l.costo_unitario.toFixed(2)}</td><td class="text-center"><button class="btn btn-xs btn-outline-primary py-0 px-2 me-1" onclick="editInvoiceLote('${l.id_lote}')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="deleteInvoiceLote('${l.id_lote}')"><i class="fa-solid fa-trash"></i></button></td></tr>`;
     });
 }
-
+function editInvoiceLote(id) {
+    const l = HISTORIAL_COMPRAS_LOTES.find(item => item.id_lote === id);
+    if (!l) return;
+    CURRENT_EDIT_LOTE_ID = id;
+    document.getElementById('stockInvoiceNum').value = l.num_factura || '';
+    document.getElementById('stockProductSelectorAutoComplete').value = l.rawCode || '';
+    document.getElementById('stockProductCode').value = l.rawCode || '';
+    document.getElementById('stockInvoiceDate').value = l.fecha_compra || '';
+    document.getElementById('stockQty').value = l.cantidad || 0;
+    document.getElementById('stockTotalCost').value = l.costo_total || 0;
+    document.getElementById('stockDiscount').value = l.descuento || 0;
+    document.querySelector('#formAddStock button[type="submit"]').innerText = 'Actualizar Compra Lote';
+}
 function deleteInvoiceLote(id) { if(confirm("¿Borrar?")) { HISTORIAL_COMPRAS_LOTES = HISTORIAL_COMPRAS_LOTES.filter(l => l.id_lote !== id); localStorage.setItem('v_bi_lotes', JSON.stringify(HISTORIAL_COMPRAS_LOTES)); renderInvoiceHistoryTable(); processAndRenderAll(); } }
 
 // SIMULADOR DE COMPRAS PROYECTADO
@@ -402,7 +546,17 @@ function convertRawTextToStagingPreview() {
         
         let maquinaRealNombre = row[4] && !row[4].toUpperCase().includes("EFECTIVO") && !row[4].toUpperCase().includes("TARJETA") ? row[4].toUpperCase() : "MAQUINA 1";
         let prodMeta = DICCIONARIO_PRODUCTOS[codeStr];
-        STAGING_MEMORIA_TEMPORAL.push({ id: `V_${i}_${Date.now()}`, fecha: isoDate, hora: timeShort, maquina: maquinaRealNombre, codigo: `COD-${codeStr}`, rawCode: codeStr, producto: prodMeta ? prodMeta.nombre : `Snack Código ${codeStr}`, estado: estado, pago: pago, cantidad: 1, valor: valorNumerico });
+        STAGING_MEMORIA_TEMPORAL.push(enrichSaleRecord({
+    id: `V_${i}_${Date.now()}`,
+    fecha: isoDate,
+    hora: timeShort,
+    maquina: maquinaRealNombre,
+    rawCode: codeStr,
+    estado: estado,
+    pago: pago,
+    cantidad: 1,
+    valor: valorNumerico
+}));
     }
     const tbody = document.querySelector('#tableStagingPreview tbody'); tbody.innerHTML = '';
     STAGING_MEMORIA_TEMPORAL.forEach(r => { tbody.innerHTML += `<tr><td>${r.fecha}</td><td>${r.hora}</td><td><span class="badge bg-secondary">${r.maquina}</span></td><td>${r.codigo}</td><td><span class="badge bg-light text-dark border">${r.producto}</span></td><td><span class="badge bg-primary">${r.pago}</span></td><td class="text-end text-success fw-bold">S/ ${r.valor.toFixed(2)}</td></tr>`; });
@@ -411,7 +565,29 @@ function convertRawTextToStagingPreview() {
 
 function commitStagingToDashboard() {
     if (STAGING_MEMORIA_TEMPORAL.length === 0) return;
-    if (confirm("¿Aprobar transacciones?")) { DATABASE_STATE = [...STAGING_MEMORIA_TEMPORAL]; localStorage.setItem('v_bi_data', JSON.stringify(DATABASE_STATE)); document.getElementById('rawCsvPasteData').value = ''; document.getElementById('stagingCardContainer').classList.add('d-none'); updateMachineSelectorDropdown(DATABASE_STATE); processAndRenderAll(); document.querySelector('#main-nav a[href="#dashboard-section"]').click(); }
+
+    if (confirm("¿Aprobar ventas del Excel? Se actualizarán ventas y reportes, pero se conservarán precios, compras, gastos y stock en máquina.")) {
+        DATABASE_STATE = STAGING_MEMORIA_TEMPORAL.map(enrichSaleRecord);
+
+        localStorage.setItem('v_bi_data', JSON.stringify(DATABASE_STATE));
+
+        document.getElementById('rawCsvPasteData').value = '';
+        document.getElementById('stagingCardContainer').classList.add('d-none');
+
+        populateSelectors(DATABASE_STATE);
+        buildFormSelectorsAutoComplete();
+
+        renderDicMasterTable();
+        renderInvoiceHistoryTable();
+        renderGastosMasterTable();
+        renderTelemetryMasterTable();
+
+        processAndRenderAll();
+
+        document.querySelector('#main-nav a[href="#dashboard-section"]').click();
+
+        alert("Ventas actualizadas. Tus datos manuales se conservaron.");
+    }
 }
 
 function updateMachineSelectorDropdown(data) {
@@ -428,15 +604,23 @@ function populateSelectors(data) {
 }
 
 function processAndRenderAll() {
-    const sDate = document.getElementById('filterStartDate').value; const eDate = document.getElementById('filterEndDate').value;
-    const paymentSel = document.getElementById('filterPayment').value; const machineSel = document.getElementById('filterMachine').value.toUpperCase();
-    let filtered = DATABASE_STATE.filter(r => {
-        if (sDate && r.fecha < sDate) return false; if (eDate && r.fecha > eDate) return false;
-        if (paymentSel !== 'TODOS' && r.pago !== paymentSel) return false; 
-        if (machineSel !== 'TODOS' && r.maquina.toUpperCase() !== machineSel) return false; return true;
-    });
-    renderKPIs(filtered); renderMetaAnual(filtered); renderHistoryChart(filtered); renderPaymentsChart(filtered); renderTopProductsSection(filtered); renderAdvancedProducts(filtered); renderDataTableSection(filtered); renderStockKardexModule(filtered); renderSimulationOrderTable(filtered); renderTelemetryMasterTable(); recalcularCuadroDeductorGastos();
+    DATABASE_STATE = DATABASE_STATE.map(enrichSaleRecord);
+
+    const filtered = getFilteredSales();
+
+    renderKPIs(filtered);
+    renderMetaAnual(filtered);
+    renderHistoryChart(filtered);
+    renderPaymentsChart(filtered);
+    renderTopProductsSection(filtered);
+    renderAdvancedProducts(filtered);
+    renderDataTableSection(filtered);
+    renderStockKardexModule(filtered);
+    renderSimulationOrderTable(filtered);
+    renderTelemetryMasterTable();
+    recalcularCuadroDeductorGastos();
 }
+
 
 function renderKPIs(data) {
     const totalSales = data.reduce((sum, r) => sum + r.valor, 0); const totalQty = data.reduce((sum, r) => sum + r.cantidad, 0);
@@ -509,3 +693,5 @@ function renderDataTableSection(data) {
     if (dtInstance) { dtInstance.clear(); dtInstance.rows.add(data); dtInstance.draw(); return; }
     dtInstance = $('#dtTransactions').DataTable({ data: data, columns: [ { data: 'fecha', defaultContent: "" }, { data: 'hora', defaultContent: "" }, { data: 'maquina', defaultContent: "" }, { data: 'codigo', defaultContent: "" }, { data: 'producto', defaultContent: "" }, { data: 'estado', defaultContent: "", render: () => `<span class="badge bg-success">ACEPTADA</span>` }, { data: 'pago', defaultContent: "" }, { data: 'cantidad', defaultContent: 0, className: 'text-end' }, { data: 'valor', defaultContent: 0, className: 'text-end', render: v => `S/ ${v.toFixed(2)}` } ], order: [[0, 'desc'], [1, 'desc']], pageLength: 10, dom: 'Bfrtip', buttons: [{ extend: 'excelHtml5', text: '<i class="fa-solid fa-file-excel me-1"></i> Exportar Ventas', className: 'btn btn-success btn-sm mt-2' }], language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' } });
 }
+
+
