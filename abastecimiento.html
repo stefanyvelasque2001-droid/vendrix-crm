@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VENDRIX - Abastecimiento</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#12816f">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="abastecimiento.css" rel="stylesheet">
+</head>
+<body>
+    <main class="app-shell">
+        <header class="app-header">
+            <div>
+                <p class="eyebrow">VENDRIX</p>
+                <h1>Abastecimiento</h1>
+                <span id="syncStatus">Listo para registrar reposiciones</span>
+            </div>
+            <a class="ghost-link" href="index.html"><i class="fa-solid fa-chart-column"></i> CRM</a>
+        </header>
+
+        <nav class="machine-tabs" id="machineTabs" aria-label="Máquinas"></nav>
+
+        <section class="control-bar">
+            <label>
+                <span>Máquina</span>
+                <select id="machineSelect"></select>
+            </label>
+            <label>
+                <span>Buscar</span>
+                <input type="search" id="searchInput" placeholder="Producto o código">
+            </label>
+            <label>
+                <span>Estado</span>
+                <select id="statusFilter">
+                    <option value="TODOS">Todos</option>
+                    <option value="URGENTE">Abastecer</option>
+                    <option value="MEDIO">Pronto</option>
+                    <option value="OK">OK</option>
+                    <option value="SIN_FECHA">Sin fecha</option>
+                </select>
+            </label>
+        </section>
+
+        <nav class="view-tabs" aria-label="Vista de abastecimiento">
+            <button type="button" class="view-tab active" data-view="STOCK"><i class="fa-solid fa-boxes-stacked"></i> Estado de máquina</button>
+            <button type="button" class="view-tab" data-view="PENDIENTES"><i class="fa-solid fa-list-check"></i> Por abastecer <span id="pendingTabCount">0</span></button>
+        </nav>
+
+        <section class="summary-grid">
+            <article class="metric-card">
+                <span>Resortes</span>
+                <strong id="metricSprings">0</strong>
+            </article>
+            <article class="metric-card danger">
+                <span>Por abastecer</span>
+                <strong id="metricUrgent">0</strong>
+            </article>
+            <article class="metric-card warning">
+                <span>Última venta</span>
+                <strong id="metricLastSale">-</strong>
+            </article>
+            <article class="metric-card success">
+                <span>Último abastecimiento</span>
+                <strong id="metricLastRestock">-</strong>
+            </article>
+        </section>
+
+        <section class="actions-row">
+            <button id="btnRestockAll" class="primary-action"><i class="fa-solid fa-check-double"></i> Marcar máquina llena</button>
+            <button id="btnCopyWhatsapp" class="secondary-action"><i class="fa-brands fa-whatsapp"></i> Copiar pendientes</button>
+            <button id="btnExportCsv" class="secondary-action"><i class="fa-solid fa-file-arrow-down"></i> Excel</button>
+        </section>
+
+        <section class="sales-import">
+            <details>
+                <summary><i class="fa-solid fa-file-import"></i> Cargar ventas para actualizar stock</summary>
+                <div class="import-grid">
+                    <label class="file-action">
+                        <input type="file" id="salesFileInput" accept=".xlsx,.xls,.csv,.txt">
+                        <i class="fa-solid fa-upload"></i>
+                        Subir Excel
+                    </label>
+                    <label>
+                        <span>Pegar ventas</span>
+                        <textarea id="salesPasteInput" rows="4" placeholder="Fecha	Status	Valor	Codigo	Maquina
+29/08/2026 10:00	ACEPTADA	2.50	20	MAQUINA 2"></textarea>
+                        <small class="import-help">Incluye una columna llamada Máquina con <b>MAQUINA 1</b> o <b>MAQUINA 2</b>. Si no la incluyes, se usa la pestaña seleccionada.</small>
+                    </label>
+                    <button id="btnProcessPaste" class="primary-action"><i class="fa-solid fa-wand-magic-sparkles"></i> Procesar pegado</button>
+                </div>
+            </details>
+        </section>
+
+        <section id="cardsGrid" class="cards-grid"></section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="storage-sync.js"></script>
+    <script src="abastecimiento.js"></script>
+</body>
+</html>
