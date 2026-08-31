@@ -10,6 +10,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -116,24 +117,25 @@
             <button class="btn btn-sm btn-outline-light d-lg-none" onclick="document.getElementById('sidebarMenu').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <nav class="nav flex-column mt-4" id="main-nav">
-            <a class="nav-link active" href="#dashboard-section"><i class="fa-solid fa-chart-column me-2"></i> Dashboard</a>
-            <a class="nav-link" href="#convertidor-section"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i> Convertidor BI</a>
-            <a class="nav-link" href="#productos-section"><i class="fa-solid fa-cookie-bite me-2"></i> Alertas y Rotación</a>
-            <a class="nav-link" href="#diccionario-section"><i class="fa-solid fa-book text-success me-2"></i> Diccionario y Precios</a>
-            <a class="nav-link" href="#stock-section"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Control de Stock</a>
-            <a class="nav-link" href="#telemetria-section"><i class="fa-solid fa-satellite-dish text-info me-2"></i> Stock en Máquina</a>
-            <a class="nav-link" href="#simulador-section"><i class="fa-solid fa-calculator text-muted me-2"></i> Simulador Compras</a>
-            <a class="nav-link" href="#gastos-section"><i class="fa-solid fa-receipt text-danger me-2"></i> Gastos Registrados</a>
-            <a class="nav-link" href="#transacciones-section"><i class="fa-solid fa-receipt me-2"></i> Transacciones</a>
+            <a class="nav-link active" href="#dashboard-section"><i class="fa-solid fa-chart-column me-2"></i> Resumen</a>
+            <a class="nav-link" href="#convertidor-section"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i> Importar ventas</a>
+            <a class="nav-link" href="#productos-section"><i class="fa-solid fa-cookie-bite me-2"></i> Rotación</a>
+            <a class="nav-link" href="#diccionario-section"><i class="fa-solid fa-book text-success me-2"></i> Diccionario Productos</a>
+            <a class="nav-link" href="#stock-section"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Almacén</a>
+            <a class="nav-link" href="#telemetria-section"><i class="fa-solid fa-satellite-dish text-info me-2"></i> Reposición</a>
+            <a class="nav-link" href="#simulador-section"><i class="fa-solid fa-calculator text-muted me-2"></i> Compras sugeridas</a>
+            <a class="nav-link" href="#gastos-section"><i class="fa-solid fa-receipt text-danger me-2"></i> Egresos</a>
+            <a class="nav-link" href="#transacciones-section"><i class="fa-solid fa-receipt me-2"></i> Ventas</a>
         </nav>
     </div>
 
     <div class="main-content">
         <header class="topbar d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h1 class="h4 mb-0 fw-bold text-dark">Business Intelligence - VENDRIX</h1>
-                <small class="text-muted">Gestión Financiera Real y Auditoría Logística</small>
+                <h1 class="h4 mb-0 fw-bold text-dark">VENDRIX CRM</h1>
+                <small class="text-muted">Operación, ventas y reposición de máquinas</small>
             </div>
+            <a class="btn btn-primary btn-sm fw-bold shadow-sm" href="abastecimiento.html"><i class="fa-solid fa-box-open"></i> Abastecimiento</a>
             <button class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" id="btnResetFilters">Limpiar filtros</button>
             <button class="btn btn-danger btn-sm fw-bold shadow-sm" id="btnClearData">Cero Absoluto</button>
         </header>
@@ -217,6 +219,7 @@
                 <div class="col-12 col-lg-4">
                     <div class="card-custom border-success"><h6 id="dicFormTitle">Catálogo Maestro de Productos</h6>
                         <form id="formAddDicProduct">
+                            <div class="mb-2"><label class="form-label small fw-bold">Máquina</label><input type="text" id="dicProductMachine" class="form-control form-control-sm fw-bold" placeholder="TODAS o MAQUINA 1" value="TODAS"></div>
                             <div class="mb-2"><label class="form-label small fw-bold">Casilla</label><input type="text" id="dicProductCode" class="form-control form-control-sm font-monospace" required></div>
                             <div class="mb-2"><label class="form-label small fw-bold">Nombre</label><input type="text" id="dicProductName" class="form-control form-control-sm" required></div>
                             <div class="mb-3"><label class="form-label small fw-bold">Precio Venta (S/)</label><input type="number" id="dicProductPrice" class="form-control form-control-sm" step="0.01" min="0" required></div>
@@ -224,7 +227,7 @@
                         </form>
                     </div>
                 </div>
-                <div class="col-12 col-lg-8"><div class="card-custom"><h6>Catálogo de Precios, Costos y Markups</h6><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableDicMaster"><thead class="table-dark"><tr><th>Código</th><th>Nombre Comercial</th><th class="text-end">Costo</th><th class="text-end">Venta</th><th class="text-end">Margen</th><th class="text-end">Margen%</th><th class="text-end">Markup%</th><th class="text-center">Acción</th></tr></thead><tbody></tbody></table></div></div></div>
+                <div class="col-12 col-lg-8"><div class="card-custom"><h6>Catálogo de Precios, Costos y Markups</h6><div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableDicMaster"><thead class="table-dark"><tr><th>Máquina</th><th>Código</th><th>Nombre Comercial</th><th class="text-end">Costo</th><th class="text-end">Venta</th><th class="text-end">Margen</th><th class="text-end">Margen%</th><th class="text-end">Markup%</th><th class="text-center">Acción</th></tr></thead><tbody></tbody></table></div></div></div>
             </div>
         </div>
 
@@ -256,22 +259,22 @@
         <div id="telemetria-section" class="content-view d-none">
             <div class="row g-3">
                 <div class="col-12 col-lg-4">
-                    <div class="card-custom border-info"><h6><i class="fa-solid fa-satellite-dish me-2"></i>Abastecimiento Físico de Bandejas</h6>
+                    <div class="card-custom border-info"><h6><i class="fa-solid fa-satellite-dish me-2"></i>Marcar Reposición de Resorte</h6>
                         <form id="formAddMachineTelemetry">
                             <div class="mb-2"><label class="form-label small fw-bold">Escribir/Seleccionar Nombre Máquina</label><input type="text" id="telMachineId" class="form-control form-control-sm fw-bold border-info" required value="MAQUINA 1"></div>
-                            <div class="mb-2"><label class="form-label small fw-bold">Seleccionar Producto</label><select id="telProductSelector" class="form-select form-select-sm border-info" required></select></div>
+                            <div class="mb-2"><label class="form-label small fw-bold">Seleccionar Resorte</label><select id="telProductSelector" class="form-select form-select-sm border-info" required></select></div>
                             <div class="row g-2 mb-3">
-                                <div class="col-6"><label class="form-label small fw-bold">Fecha Carga Física</label><input type="date" id="telLoadDate" class="form-control form-control-sm" required></div>
-                                <div class="col-6"><label class="form-label small fw-bold">Cantidad Inyectada</label><input type="number" id="telQty" class="form-control form-control-sm font-monospace" min="1" required placeholder="Ej: 10"></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Fecha Abastecida</label><input type="date" id="telLoadDate" class="form-control form-control-sm" required></div>
+                                <div class="col-6"><label class="form-label small fw-bold">Capacidad Máxima</label><input type="number" id="telQty" class="form-control form-control-sm font-monospace" min="1" required readonly></div>
                             </div>
-                            <button type="submit" class="btn btn-info text-dark fw-bold btn-sm w-100">Guardar Lote en Resorte</button>
+                            <button type="submit" class="btn btn-info text-dark fw-bold btn-sm w-100">Marcar como Abastecido</button>
                         </form>
                     </div>
                 </div>
                 <div class="col-12 col-lg-8">
                     <div class="card-custom">
-                        <h6><i class="fa-solid fa-calculator text-info me-2"></i>Monitor de Resortes y Semáforo de Visitas del Técnico</h6>
-                        <div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableTelemetryMaster"><thead class="table-dark"><tr><th>Máquina</th><th>Casilla</th><th>Producto</th><th>Fecha Carga</th><th class="text-end">Base</th><th class="text-end">Ventas Post.</th><th class="text-end table-primary">Stock en Máquina</th><th class="text-center">Estado Alerta</th><th class="text-center">Accion</th></tr></thead><tbody></tbody></table></div>
+                        <h6><i class="fa-solid fa-calculator text-info me-2"></i>Monitor de Reposición por Capacidad</h6>
+                        <div class="table-responsive"><table class="table table-striped table-bordered align-middle small w-100" id="tableTelemetryMaster"><thead class="table-dark"><tr><th>Máquina</th><th>Casilla</th><th>Producto</th><th>Última Reposición</th><th class="text-end">Capacidad</th><th class="text-end">Ventas</th><th class="text-end table-primary">Stock Estimado</th><th class="text-center">Estado</th><th class="text-center">Acción</th></tr></thead><tbody></tbody></table></div>
                     </div>
                 </div>
             </div>
