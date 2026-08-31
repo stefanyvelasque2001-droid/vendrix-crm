@@ -39,6 +39,10 @@
     return state && Object.keys(state).some(key => DATA_KEYS.includes(key));
   }
 
+  function sameCloudState(first, second) {
+    return DATA_KEYS.every(key => (first?.[key] ?? null) === (second?.[key] ?? null));
+  }
+
   async function authHeaders() {
     if (!accountMode) return { "x-vendrix-pin": getPin() };
     const { data } = await accountClient.auth.getSession();
@@ -82,10 +86,9 @@
     const cloudState = await readCloud();
     const localState = getLocalState();
     if (hasData(cloudState)) {
-      const cloudSnapshot = JSON.stringify(cloudState);
-      const localSnapshot = JSON.stringify(localState);
+      const alreadyCurrent = sameCloudState(cloudState, localState);
       setLocalState(cloudState);
-      if (cloudSnapshot !== localSnapshot) location.reload();
+      if (!alreadyCurrent) location.reload();
       return;
     }
     if (hasData(localState)) await writeCloud(localState);
