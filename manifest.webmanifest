@@ -4,7 +4,14 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
-  "theme_color": "#0f172a",
-  "description": "CRM para control de ventas, stock y gastos de maquinas expendedoras."
+  "theme_color": "#2f9b7d",
+  "description": "CRM para control de ventas, stock y gastos de maquinas expendedoras.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
-
