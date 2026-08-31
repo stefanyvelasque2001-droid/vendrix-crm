@@ -82,17 +82,24 @@
     updateSyncLabel("Guardado en la nube");
   }
 
-  async function initialSync() {
-    const cloudState = await readCloud();
-    const localState = getLocalState();
-    if (hasData(cloudState)) {
-      const alreadyCurrent = sameCloudState(cloudState, localState);
-      setLocalState(cloudState);
-      if (!alreadyCurrent) location.reload();
-      return;
-    }
-    if (hasData(localState)) await writeCloud(localState);
+async function initialSync() {
+  const cloudState = await readCloud();
+  const localState = getLocalState();
+
+  if (hasData(cloudState)) {
+    setLocalState(cloudState);
+
+    // No recargar automáticamente.
+    // El estado local ya fue actualizado.
+    updateSyncLabel("Sincronizado con la nube");
+
+    return;
   }
+
+  if (hasData(localState)) {
+    await writeCloud(localState);
+  }
+}
 
   async function saveNow() {
     if (restoringFromCloud) return;
